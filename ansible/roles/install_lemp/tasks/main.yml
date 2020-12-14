@@ -1,0 +1,149 @@
+---
+# tasks file for install_lemp
+
+
+
+- name: ping
+  ping:
+
+- name: Update all packages to their latest version
+  apt:
+    force_apt_get: True
+    name: "*"
+    state: latest
+
+- name: allow ssh
+  ufw:
+    rule: allow
+    name: OpenSSH
+
+- name: Add php repository
+  apt_repository: repo='ppa:ondrej/php'
+
+- name: Disable apache2 if enabled
+  shell: if systemctl is-enabled --quiet apache2; then systemctl disable apache2 && echo disable_ok ; fi
+  register: output
+  changed_when: "'disable_ok' in output.stdout"
+
+- name: install nginx
+  apt: name=nginx state=latest
+
+- name: Disable default config Nginx
+  file:
+    path: /etc/nginx/sites-enabled/default
+    state: absent
+
+- name: Copy nginx config
+  copy:
+    src: wordpress
+    dest: /etc/nginx/sites-available/
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: start nginx and make enable on boot
+  service: name=nginx state=started enabled=yes
+
+- name: Enable nginx config file
+  file:
+    src: "/etc/nginx/sites-available/wordpress"
+    dest: "/etc/nginx/sites-enabled/wordpress"
+    state: link
+  notify:
+     - restart nginx
+
+- name: ufw allow nginx
+  ufw:
+      rule: allow
+      name: Nginx HTTP
+
+- name: ufw enable
+  ufw:
+      state: enabled
+      policy: allow
+
+- name: install mysql-server
+  apt:
+    name: "{{ item }}"
+  with_items:
+    - python-mysqldb
+    - mysql-server
+  notify:
+     - start mysql
+
+- name: install php7.4
+  apt: name=php7.4 state=latest
+
+- name: install php7.4-fpm
+  apt: name=php7.4-fpm state=latest
+
+- name: Update php-fpm file
+  lineinfile:
+   dest: /etc/php/7.4/fpm/php.ini
+   line: cgi.fix_pathinfo=0
+   state: present
+  notify:
+      - restart php-fpm
+
+- name: install php-mysql
+  apt: name=php-mysql state=latest
+
+- name: Change root password
+  mysql_user:
+    name: root
+    password: "{{ mysql_root_password }}"
+  ignore_errors: yes
+
+- name: Create a new database with name 'wordpress'
+  mysql_db:
+    login_user: root
+    login_password: "{{ mysql_root_password }}"
+    name: wordpress
+    state: present
+    encoding: utf8
+
+- name: Copy mysqldump
+  copy:
+    src: wordpress_dump.sql
+    dest: /tmp/wordpress_dump.sql
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Restore database from dump
+  mysql_db:
+    name: wordpress
+    state: import
+    target: /tmp/wordpress_dump.sql
+    login_user: root
+    login_password: "{{ mysql_root_password }}"
+
+- name: Create mysql.user wordpress
+  mysql_user:
+    name: wordpressuser
+    password: "{{ mysql_wordpress_password }}"
+    priv: 'wordpress.*:ALL'
+    state: present
+    login_user: root
+    login_password: "{{ mysql_root_password }}"
+
+- name: Download WordPress
+  get_url:
+   url: https://wordpress.org/latest.tar.gz
+   dest: /tmp/wordpress.tar.gz
+   validate_certs: no
+
+- name: Extract WordPress
+  unarchive:
+    src: /tmp/wordpress.tar.gz
+    dest: /var/www/html/
+    copy: no
+
+- name: Copy mysqldump
+  copy:
+    src: wp-config.php
+    dest: /var/www/html/wordpress/
+    owner: root
+    group: root
+    mode: '0755'
+

@@ -1,0 +1,16 @@
+---
+# handlers file for install_lemp
+- name: restart nginx
+  service:
+    name: nginx
+    state: restarted
+
+- name: restart php-fpm
+  service:
+    name: php7.4-fpm
+    state: restarted
+
+- name: start mysql
+  service:
+    name: mysql
+    state: restarted

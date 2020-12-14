@@ -1,0 +1,8 @@
+
+[centos]
+lnx1 ansible_ssh_host=linux1 ansible_ssh_pass=fivaprolje1 owner=Vasya
+lnx2 ansible_ssh_host=linux2 ansible_ssh_pass=fivaprolje2 owner=Petya
+[ubuntu]
+lnx3 ansible_ssh_host=linux3 ansible_ssh_user=jikki ansible_ssh_pass=fivaprolje3 ansible_become_pass=fivaprolje3 owner=Kostya
+[lemps]
+lemp ansible_ssh_host=192.168.1.68 ansible_ssh_user=user ansible_ssh_pass=Useruseruser1! ansible_become_pass=Useruseruser1!

@@ -1,0 +1,49 @@
+---
+# tasks file for deploy_apache_web
+
+- block: #===========block for ubuntu========#
+
+   - name: install apache for ubuntu
+     apt: name=apache2 state=latest
+
+   - name: start apache and make enable on boot
+     service: name=apache2 state=started enabled=yes
+  when: ansible_os_family == "Debian"
+
+
+- name: install apache for centos7
+  yum: name=httpd state=latest
+  when:
+   - ansible_os_family == "RedHat"
+   - ansible_pkg_mgr == "yum"
+
+- name: install apache for centos8
+  dnf: name=httpd state=latest
+  when:
+   - ansible_os_family == "RedHat"
+   - ansible_pkg_mgr == "dnf"
+
+
+- block: #==========block for centos=========#
+
+   - name: start httpd and make enable on boot
+     service: name=httpd state=started enabled=yes
+
+   - name: enable httpd on firewall
+     firewalld:
+      service: http
+      permanent: true
+      state: enabled
+
+   - name: reload firewall on redhat
+     systemd:
+      name: firewalld
+      state: reloaded
+  when: ansible_os_family == "RedHat"
+
+
+- name: copy home page centos
+  template: src=index.j2 dest={{ destin_folder }}/index.html mode=0555
+  notify:
+      - restart httpd
+      - restart apache2
